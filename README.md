@@ -83,7 +83,7 @@ That's almost a 6x pessimization!
 GCC might give me some more information using the -ftime-report and -ftime-report-details flags.\
 Starting from the std::array version:
 ```shell
-$ gcc examples/c_array.cpp -O3 -std=c++2a -ftime-report -ftime-report-details
+$ gcc examples/std_array.cpp -O3 -std=c++2a -ftime-report -ftime-report-details
 
 Time variable                                   usr           sys          wall               GGC
  phase setup                        :   0.01 (  3%)   0.00 (  0%)   0.01 (  2%)    1360 kB (  4%)
