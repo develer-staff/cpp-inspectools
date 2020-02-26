@@ -1,0 +1,75 @@
+#!/bin/sh
+set -euf
+
+# Constants for --help
+VERSION="locfile 0.1"
+DESCRIPTION="
+A tool to measure the actual lines of code of the given C++ file.
+The tool is best suited to be run from the project root folder, since it automatically adds the include/ directory to look for header files.
+Lines counting takes place after the preprocessor stage where macros are expanded and source code is included-in and cut-out by ifdefs: this is basically what the compiler frontend is going to be fed with.
+The lines of code that goes into the compiler frontend can be considered a proxy for compile-times, where the bigger the amount of LOC the greater the time needed to compile."
+USAGE="
+  locfile --help
+  locfile [GCC OPTIONS] [LOCFILE OPTIONS]"
+OPTIONS="
+  --help:           Print help and exit
+  --verbose:        Show a more verbose output
+  --gcc:            Launch gcc when invoking the compiler command (default)
+  --clang:          Launch clang when invoking the compiler command
+  --libc++:         Use libc++ instead of libstdc++ (implies --clang)
+  --watch:          Use watchexec as a filesystem watcher to update output on changes
+  --normalize:      Pass through clang-format before counting lines
+  --keep-comments:  Prevent the preprocessor from stripping away comments
+  --keep-markers:   Prevent the preprocessor from stripping away preprocessing tokens line-markers
+  \${LOCFILE}:       Environment variable used to override locinclude's default arguments"
+EXAMPLES="
+  locfile src/main.cpp
+  locfile src/main.cpp --watch
+  locfile src/main.cpp -fno-rtti -fno-exceptions -Ofast -std=c++2a
+  locfile test/dataclient_constructor.cpp --libc++
+  locfile include/ui/windowing_system.cpp --keep-comments --clang"
+DEPENDENCIES="
+  wc:               Hard requirement for counting lines of code
+  gcc:              Required without --clang and --libc++ flags
+  clang:            Required for --clang or --libc++ flags
+  clang-format:     Required for --normalize
+  libc++:           Required for --libc++ flag
+  watchexec:        Required for --watch flag"
+
+# CLI variables
+if [ -z "${LOCFILE:-}" ]; then
+	ARGS="-O3 --std=c++2a"
+	LOCFILE=""
+else
+	ARGS=""
+fi
+TRIM_LM="-P"
+SOURCE_FILE=""
+VERBOSE=""
+COMPILER="gcc"
+WATCH_PASS=""
+NORMALIZE_PASS="tee"
+# Input parsing
+for arg in "${LOCFILE}" "${@}"; do
+	case "${arg}" in
+	--help) echo "${VERSION}${DESCRIPTION}\n"; echo "USAGE:${USAGE}\n"; echo "OPTIONS:${OPTIONS}\n"; echo "EXAMPLES:${EXAMPLES}\n"; echo "DEPENDENCIES:${DEPENDENCIES}\n"; exit;;
+	--verbose) VERBOSE=true;;
+	--gcc) ;;
+	--clang) COMPILER="clang";;
+	--libc++) COMPILER="clang"; ARGS="${ARGS} -stdlib=libc++";;
+	--watch) echo "error: unhandled flag --watch"; exit; WATCH_PASS="watchexec";;
+	--normalize) NORMALIZE_PASS="clang-format";;
+	--keep-comments) ARGS="${ARGS} -C";;
+	--keep-linemarkers) TRIM_LM="";;
+	-*) ARGS="${ARGS} ${arg}";;
+	"") ;;
+	*) SOURCE_FILE="${arg}";;
+	esac
+done
+
+# Output
+if [ ${VERBOSE} ]; then
+	echo "compiler args: ${ARGS}"
+	printf "lines of code: "
+fi
+"${COMPILER}" -E "${SOURCE_FILE}" ${ARGS} ${TRIM_LM} -I include | ${NORMALIZE_PASS} | wc -l
