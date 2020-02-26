@@ -30,7 +30,8 @@ Now it's time to run clang-tidy using the cppcoreguidelines checks:
 ```shell
 $ clang-tidy --checks=cppcoreguidelines-* examples/c_array.cpp -- -std=c++2a
 1 warning generated.
-/home/user/cpp-inspectools/examples/c_array.cpp:2:13: warning: do not declare C-style arrays, use std::array<> instead [cppcoreguidelines-avoid-c-arrays]
+/home/user/cpp-inspectools/examples/c_array.cpp:2:13: warning: do not declare C-style arrays,
+use std::array<> instead [cppcoreguidelines-avoid-c-arrays]
   constexpr int values[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
             ^
 $ █
