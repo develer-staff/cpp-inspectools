@@ -34,9 +34,9 @@ $ clang-tidy --checks=cppcoreguidelines-* examples/c_array.cpp -- -std=c++2a
   constexpr int values[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
             ^
 $ █
-```cpp
-Seems a legit advice, here's the updated code in [examples/std_array.cpp](examples/std_array.cpp):
 ```
+Seems a legit advice, here's the updated code in [examples/std_array.cpp](examples/std_array.cpp):
+```cpp
 #include <array>
 
 int main() {
