@@ -24,7 +24,7 @@ int main() {
 Checking that it compiles fine:
 ```shell
 $ gcc examples/c_array.cpp -O3 -std=c++2a
-$
+$ █
 ```
 Now it's time to run clang-tidy using the cppcoreguidelines checks:
 ```shell
@@ -33,7 +33,7 @@ $ clang-tidy --checks=cppcoreguidelines-* examples/c_array.cpp -- -std=c++2a
 /home/user/cpp-inspectools/examples/c_array.cpp:2:13: warning: do not declare C-style arrays, use std::array<> instead [cppcoreguidelines-avoid-c-arrays]
   constexpr int values[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
             ^
-$
+$ █
 ```cpp
 Seems a legit advice, here's the updated code in [examples/std_array.cpp](examples/std_array.cpp):
 ```
@@ -51,7 +51,7 @@ int main() {
 Recompiling:
 ```shell
 $ gcc examples/std_array.cpp -O3 -std=c++2a
-$
+$ █
 ```
 There was something strange this time though: the compilation seemed a little bit more choppy, it wasn't as snappy as before...
 ### Timing compilation times
@@ -62,7 +62,7 @@ $ time gcc examples/std_array.cpp -O3 -std=c++2a
 real    0m0,244s
 user    0m0,199s
 sys     0m0,049s
-$
+$ █
 ```
 What about before?
 ```shell
@@ -71,7 +71,7 @@ $ time gcc examples/c_array.cpp -O3 -std=c++2a
 real    0m0,043s
 user    0m0,022s
 sys     0m0,022s
-$
+$ █
 ```
 That's almost a 6x pessimization!
 
@@ -110,6 +110,50 @@ Time variable                                   usr           sys          wall 
  rest of compilation                :   0.00 (  0%)   0.00 (  0%)   0.00 (  0%)       6 kB (  0%)
  `- initialize rtl                  :   0.00 (  0%)   0.00 (  0%)   0.01 (  2%)      12 kB (  0%)
  TOTAL                              :   0.37          0.22          0.61          38773 kB
-$
+$ █
 ```
+Now the old fashioned array one:
+```shell
+$ gcc examples/c_array.cpp -O3 -std=c++2a -ftime-report -ftime-report-details
+
+Time variable                                   usr           sys          wall               GGC
+ phase setup                        :   0.00 (  0%)   0.00 (  0%)   0.01 ( 50%)    1360 kB ( 64%)
+ phase opt and generate             :   0.01 (100%)   0.00 (  0%)   0.01 ( 50%)     152 kB (  7%)
+ |name lookup                       :   0.00 (  0%)   0.00 (  0%)   0.01 ( 50%)      88 kB (  4%)
+ initialize rtl                     :   0.00 (  0%)   0.00 (  0%)   0.01 ( 50%)      12 kB (  1%)
+ rest of compilation                :   0.00 (  0%)   0.00 (  0%)   0.00 (  0%)       6 kB (  0%)
+ `- initialize rtl                  :   0.00 (  0%)   0.00 (  0%)   0.01 ( 50%)      12 kB (  1%)
+ TOTAL                              :   0.01          0.00          0.02           2125 kB
+$ █
+```
+GCC internals report a 37x slowdown on user time and 30x slowdown on wall time for the std::array version, with a 19x higher memory usage.
+It's interesting to note that the setup phase seems to be a constant in both reports, so the time/memory it took to compile the actual C-style array code is even smaller.
+
+### Using locfile
+Most of the time seems spent in the parsing phase.
+What's the actual C++ preprocessed code that goes into the compiler frontend?
+```shell
+$ ./locfile examples/std_array.cpp --verbose
+compiler args: -O3 --std=c++2a
+lines of code: 20868
+$
+$ ./locfile examples/c_array.cpp --verbose
+compiler args: -O3 --std=c++2a
+lines of code: 7
+$ █
+```
+I surely didn't write 20 thousand lines of code...
+
+### Using locinclude
+Since I included only the `array` system header, the impact must come from there.
+```shell
+$ ./locinclude array --verbose
+generated source code:
+#include <array>
+compiler args: -O3 --std=c++2a
+lines of code: 20861
+$ █
+```
+Exactly.
+Well, I could've used the `numeric` system header in combination with the `array` one, what would have been the impact in terms of lines of code?
 
