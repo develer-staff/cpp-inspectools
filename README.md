@@ -156,5 +156,31 @@ lines of code: 20861
 $ █
 ```
 Exactly.
-Well, I could've used the `numeric` system header in combination with the `array` one, what would have been the impact in terms of lines of code?
+Well, I was thinking about using `std::accumulate` in combination with `std::array`, but since that would require including the `numeric` header I'm afraid of another impact in compile times.
+Let's check:
+```shell
+$ ./locinclude numeric --verbose
+generated source code:
+#include <numeric>
+compiler args: -O3 --std=c++2a
+lines of code: 4813
+$
+$ ./locinclude array numeric --verbose
+generated source code:
+#include <array>
+#include <numeric>
+compiler args: -O3 --std=c++2a
+lines of code: 21523
+$ █
+```
+The `numeric` header alone is almost 5k lines of preprocessed code, however when it is combined with the `array` header the LOC count goes from 20861 of `array` alone to 21523 for the combo: this is due to the headers sharing a portion of headers protected by [include guards](https://en.wikipedia.org/wiki/Include_guard).
+Let's check the compilation times on the `std::array`/`std::accumulate` combo on [examples/std_array_accumulate.cpp](examples/std_array_accumulate.cpp):
+```shell
 
+real    0m0,245s
+user    0m0,215s
+sys     0m0,039s
+$ █
+```
+Comparing these latest result with [the ones of std_array.cpp](#timing_compilation_times) there's infact a negligible performance loss.
+I'm concluding that the use of the `array` header alone is what is bringing the most pessimization from a compile time standpoint, while I wouldn't mind the addition of the `numeric` header if I already had to use `array` in the first place.
