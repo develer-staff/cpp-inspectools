@@ -20,7 +20,7 @@ int main() {
   return sum;
 }
 ```
-and compiles fine:
+Checking that it compiles fine:
 ```
 $ gcc examples/c_array.cpp -O3 -std=c++2a -Wall -Wextra -Wpedantic
 $
@@ -34,5 +34,42 @@ $ clang-tidy --checks=cppcoreguidelines-* examples/c_array.cpp -- -std=c++2a
             ^
 $
 ```
-Seems a legit advice, that's the code updated:
+Seems a legit advice, here's the updated code in [examples/std_array.cpp](examples/std_array.cpp):
 ```
+#include <array>
+
+int main() {
+  constexpr std::array<int, 9> values{1, 2, 3, 4, 5, 6, 7, 8, 9};
+  int sum = 0;
+  for (int value : values)
+    sum += value;
+  return sum;
+
+}
+```
+Recompiling:
+```
+$ gcc examples/std_array.cpp -O3 -std=c++2a -Wall -Wextra -Wpedantic
+$
+```
+There was something strange this time though: the compilation seemed a little bit more choppy, it wasn't as snappy as before...
+Let's time it:
+```
+$ time gcc examples/std_array.cpp -O3 -std=c++2a -Wall -Wextra -Wpedantic
+
+real    0m0,244s
+user    0m0,199s
+sys     0m0,049s
+$
+```
+What about before?
+```
+$ time gcc examples/c_array.cpp -O3 -std=c++2a -Wall -Wextra -Wpedantic
+
+real    0m0,043s
+user    0m0,022s
+sys     0m0,022s
+$
+```
+That's almost a 6x pessimization!
+
