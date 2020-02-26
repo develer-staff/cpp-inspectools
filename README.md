@@ -5,7 +5,7 @@ A suite of tools to perform different kind of inspections on C++ source and head
 * locfile: measure the preprocessed lines of code of the given file
 
 ## Rationale
-C++ is considered a slow language to compile and a fast language to run, even though runtime performance can be hindered by an excessive or a wrong use of abstractions and generalized development.\
+C++ is considered a slow language to compile and a fast language to run, even though runtime performance can be hindered by an excessive or a wrong use of abstractions and generalized coding.\
 Given the right amount of effort however, C++ can actually be "a fast language to compile and a fast language to run", period.\
 The purpose of these tools is to give developers the chance of taking more informed decisions, faster.
 
