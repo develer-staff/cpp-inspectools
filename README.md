@@ -182,5 +182,5 @@ user    0m0,215s
 sys     0m0,039s
 $ █
 ```
-Comparing these latest result with [the ones of std_array.cpp](#timing_compilation_times) there's infact a negligible performance loss.
+Comparing these latest result with [the ones of std_array.cpp](#timing-compilation-times) there's infact a negligible performance loss.
 I'm concluding that the use of the `array` header alone is what is bringing the most pessimization from a compile time standpoint, while I wouldn't mind the addition of the `numeric` header if I already had to use `array` in the first place.
