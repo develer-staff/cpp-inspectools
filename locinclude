@@ -2,7 +2,7 @@
 set -euf
 
 # Constants for --help
-VERSION="locinclude 0.1"
+VERSION="locinclude 0.3"
 DESCRIPTION="
 A tool to measure the lines of code introduced by including one or more C++ system headers.
 Lines counting takes place after the preprocessor stage where macros are expanded and source code is included-in and cut-out by ifdefs: this is basically what the compiler frontend is going to be fed with.
@@ -12,75 +12,80 @@ USAGE="
   locinclude --tabular [GCC OPTIONS] [LOCINCLUDE OPTIONS]
   locinclude [SYSTEM HEADERS] [GCC OPTIONS] [LOCINCLUDE OPTIONS]"
 OPTIONS="
-  --help:           Print help and exit
+  --help:           Print this help and exit
   --tabular:        Print a table with common system headers, separated by category
   --verbose:        Show a more verbose output, including the source code given to the compiler
-  --gcc:            Launch gcc when invoking the compiler command (default)
-  --clang:          Launch clang when invoking the compiler command
-  --libc++:         Use libc++ instead of libstdc++ (implies --clang)
-  --normalize:      Pass through clang-format before counting lines
+  --compiler=bin:   The binary to run as a compiler, defaults to gcc
+  --libc++:         Use libc++ instead of libstdc++ (implies --compiler=clang)
+  --include=path:   Add the specified path to include paths
+  --normalize:      Pass through clang-format before counting lines,
+                    useful for comparing different files without cheating on
+					code formatting differences
+  --output=file:    Output to a file the preprocessed and eventually formatted code
   --keep-comments:  Prevent the preprocessor from stripping away comments
-  --keep-markers:   Prevent the preprocessor from stripping away preprocessing tokens line-markers
+  --keep-markers:   Prevent the preprocessor from stripping away linemarkers
+                    preprocessing tokens
   \${LOCINCLUDE}:    Environment variable used to override locinclude's default arguments"
 EXAMPLES="
   locinclude --tabular
   locinclude stddef.h
   locinclude cstdlib -std=c++2a
   locinclude stdlib.h --libc++
-  locinclude memory utility --keep-comments --clang
+  locinclude memory utility --keep-comments --compiler=clang
   locinclude array vector utility -O3 -std=c++17"
 DEPENDENCIES="
   wc:               Hard requirement for counting lines of code
-  gcc:              Required without --clang and --libc++ flags
-  clang:            Required for --clang or --libc++ flags
+  gcc:              Required as a default compiler
+  clang:            Required for --compiler=clang or --libc++ flag
   clang-format:     Required for --normalize
-  libc++:           Required for --libc++ flag
-  source-highlight: Required for having source code highlighted with --verbose"
+  libc++:           Required for --libc++ flag"
 
-# CLI variables
-if [ -z "${LOCINCLUDE:-}" ]; then
-	ARGS="-O3 --std=c++2a"
-	LOCINCLUDE=""
-else
-	ARGS=""
-fi
-TRIM_LM="-P"
-SOURCE=""
-TABULAR=""
-VERBOSE=""
-COMPILER="gcc"
-NORMALIZE_FLAG=""
-NORMALIZE_PASS="tee"
-SOURCE_HIGHLIGHT_PASS="tee"
 # Input parsing
-for arg in "${LOCINCLUDE}" "${@}"; do
+extractValue()
+{
+	echo "$1" | cut --delimiter = --field 2
+}
+INCLUDE_PATHS="-I include"
+QUIET=true
+for arg in "${LOCINCLUDE:--O3 --std=c++2a}" "${@:---help}"; do
 	case "${arg}" in
-	--help) echo "${VERSION}${DESCRIPTION}\n"; echo "USAGE:${USAGE}\n"; echo "OPTIONS:${OPTIONS}\n"; echo "EXAMPLES:${EXAMPLES}\n"; echo "DEPENDENCIES:${DEPENDENCIES}\n"; exit;;
+	--help) printf "%s%s\n\nUSAGE:%s\n\nOPTIONS:%s\n\nEXAMPLES:%s\n\nDEPENDENCIES:%s\n" "${VERSION}" "${DESCRIPTION}" "${USAGE}" "${OPTIONS}" "${EXAMPLES}" "${DEPENDENCIES}"; exit;;
 	--tabular) TABULAR=true;;
-	--verbose) VERBOSE=true;;
-	--gcc) ;;
-	--clang) COMPILER="clang";;
-	--libc++) COMPILER="clang"; ARGS="${ARGS} -stdlib=libc++";;
+	--verbose) unset QUIET;;
+	--compiler=*) COMPILER="$(extractValue "${arg}")";;
+	--libc++) COMPILER="clang"; COMPILER_ARGS="${COMPILER_ARGS:-} -stdlib=libc++";;
+	--include=*) INCLUDE_PATHS="${INCLUDE_PATHS} -I $(extractValue "${arg}")";;
 	--normalize) NORMALIZE_FLAG="--normalize"; NORMALIZE_PASS="clang-format";;
-	--keep-comments) ARGS="${ARGS} -C";;
-	--keep-linemarkers) TRIM_LM="";;
-	-*) ARGS="${ARGS} ${arg}";;
+	--keep-comments) KEEP_COMMENTS="-C";;
+	--keep-linemarkers) KEEP_LINEMARKERS=" ";; # By default linemarkers are kept, -P flag removes them
+	--output=*) OUTPUT_FILE=$(extractValue "${arg}");;
+	-*) COMPILER_ARGS="${COMPILER_ARGS:-} ${arg}";;
     "") ;;
-	 *) SOURCE="${SOURCE}\n#include <${arg}>";;
+	 *) SOURCE="${SOURCE:-}#include <${arg}>\n";;
 	esac
 done
 
-# Output
+# Prepare to output
+COMPILATION_PASS="${COMPILER:-gcc} -E -x c++ ${KEEP_LINEMARKERS:--P} ${KEEP_COMMENTS:-} ${COMPILER_ARGS:-} ${INCLUDE_PATHS} -"
+VERBOSITY_PASS=${QUIET:-"echo \"${SOURCE:-}\" && echo ${COMPILATION_PASS} && printf 'LOC: '"}
+
+# Core non-tabular
+if [ -z ${TABULAR:-} ]; then
+	eval "${VERBOSITY_PASS} && echo \"${SOURCE:-}\" | ${COMPILATION_PASS} | ${NORMALIZE_PASS:-tee} | tee ${OUTPUT_FILE:-} | wc -l"
+	exit
+fi
+
+# Core tabular
 _locinclude()
-{
-	$0 "${ARGS}" --"${COMPILER}" "${NORMALIZE_FLAG}" "$@" &
+{	# Runs asynchronously
+	eval "${0} ${COMPILER_ARGS} --compiler=${COMPILER:-gcc} ${NORMALIZE_FLAG:-} ${*}" &
 }
 printline()
 {
-		CPP_11=$(_locinclude $1 --std=c++11)
-		CPP_14=$(_locinclude $1 --std=c++14)
-		CPP_17=$(_locinclude $1 --std=c++17)
-		CPP_2a=$(_locinclude $1 --std=c++2a)
+		CPP_11=$(_locinclude "${1}" --std=c++11)
+		CPP_14=$(_locinclude "${1}" --std=c++14)
+		CPP_17=$(_locinclude "${1}" --std=c++17)
+		CPP_2a=$(_locinclude "${1}" --std=c++2a)
 		wait
 		printf "%-18s %6d %6d %6d %6d\n" "${1}" "${CPP_11}" "${CPP_14}" "${CPP_17}" "${CPP_2a}"
 }
@@ -89,39 +94,25 @@ printtable()
 	printf "%36s\n" "$1"
 	printf "%-18s %6s %6s %6s %6s\n" "HEADER" "C++11" "C++14" "C++17" "C++2a"
 	for h in $2; do
-		printline ${h}
+		printline "${h}" 2> /dev/null
 	done
 	echo
 }
-if [ ${TABULAR} ]; then
-	printtable "---       Concepts      ---" "concepts"
-	printtable "---      Coroutines     ---" "coroutine"
-	printtable "---      Utilities      ---" "cstdlib csignal csetjmp cstdarg typeinfo typeindex type_traits bitset functional utility ctime chrono cstddef initializer_list tuple any optional variant compare version source_location"
-	printtable "---    Dynamic memory   ---" "new memory scoped_allocator memory_resource"
-	printtable "---    Numeric limits   ---" "climits cfloat cstdint cinttypes limits"
-	printtable "---    Error handling   ---" "exception stdexcept cassert system_error cerrno"
-	printtable "---       Strings       ---" "cctype cwctype cstring cwchar cuchar string string_view charconv format"
-	printtable "---      Containers     ---" "array vector deque list forward_list set map unordered_set unordered_map stack queue span"
-	printtable "---      Iterators      ---" "iterator"
-	printtable "---        Ranges       ---" "ranges"
-	printtable "---      Algorithms     ---" "algorithm execution"
-	printtable "---       Numerics      ---" "cmath complex valarray random numeric ratio cfenv bit numbers"
-	printtable "---     Input/Output    ---" "iosfwd ios istream ostream iostream fstream sstream syncstream iomanip streambuf cstdio"
-	printtable "---     Localization    ---" "locale clocale codecvt"
-	printtable "--- Regular expressions ---" "regex"
-	printtable "---  Atomic operations  ---" "atomic"
-	printtable "---    Thread support   ---" "thread stop_token mutex shared_mutex future condition_variable semaphore latch barrier"
-	printtable "---   C compatibility   ---" "assert.h cassert ctype.h cctype errno.h cerrno fenv.h cfenv float.h cfloat inttypes.h cinttypes limits.h climits locale.h clocale math.h cmath setjmp.h csetjmp signal.h csignal stdarg.h cstdarg stddef.h cstddef stdint.h cstdint stdio.h cstdio stdlib.h cstdlib string.h cstring time.h ctime uchar.h cuchar wchar.h cwchar wctype.h cwctype"
-	exit
-fi
-if [ ${VERBOSE} ]; then
-	if command -v source-highlight > /dev/null; then
-		SOURCE_HIGHLIGHT_PASS="source-highlight --src-lang cxx --out-format esc"
-	fi
-	echo "generated source code: $(echo ${SOURCE} | ${SOURCE_HIGHLIGHT_PASS})"
-	echo "compiler args: ${ARGS}"
-	printf "lines of code: "
-fi
-
-echo "${SOURCE}" | "${COMPILER}" -E -x c++ ${ARGS} ${TRIM_LM} - 2> /dev/null | ${NORMALIZE_PASS} | wc -l
-
+printtable "---       Concepts      ---" "concepts"
+printtable "---      Coroutines     ---" "coroutine"
+printtable "---      Utilities      ---" "cstdlib csignal csetjmp cstdarg typeinfo typeindex type_traits bitset functional utility ctime chrono cstddef initializer_list tuple any optional variant compare version source_location"
+printtable "---    Dynamic memory   ---" "new memory scoped_allocator memory_resource"
+printtable "---    Numeric limits   ---" "climits cfloat cstdint cinttypes limits"
+printtable "---    Error handling   ---" "exception stdexcept cassert system_error cerrno"
+printtable "---       Strings       ---" "cctype cwctype cstring cwchar cuchar string string_view charconv format"
+printtable "---      Containers     ---" "array vector deque list forward_list set map unordered_set unordered_map stack queue span"
+printtable "---      Iterators      ---" "iterator"
+printtable "---        Ranges       ---" "ranges"
+printtable "---      Algorithms     ---" "algorithm execution"
+printtable "---       Numerics      ---" "cmath complex valarray random numeric ratio cfenv bit numbers"
+printtable "---     Input/Output    ---" "iosfwd ios istream ostream iostream fstream sstream syncstream iomanip streambuf cstdio"
+printtable "---     Localization    ---" "locale clocale codecvt"
+printtable "--- Regular expressions ---" "regex"
+printtable "---  Atomic operations  ---" "atomic"
+printtable "---    Thread support   ---" "thread stop_token mutex shared_mutex future condition_variable semaphore latch barrier"
+printtable "---   C compatibility   ---" "assert.h cassert ctype.h cctype errno.h cerrno fenv.h cfenv float.h cfloat inttypes.h cinttypes limits.h climits locale.h clocale math.h cmath setjmp.h csetjmp signal.h csignal stdarg.h cstdarg stddef.h cstddef stdint.h cstdint stdio.h cstdio stdlib.h cstdlib string.h cstring time.h ctime uchar.h cuchar wchar.h cwchar wctype.h cwctype"
