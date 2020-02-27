@@ -27,6 +27,7 @@ OPTIONS="
   --keep-comments:  Prevent the preprocessor from stripping away comments
   --keep-markers:   Prevent the preprocessor from stripping away linemarkers
                     preprocessing tokens
+  --output=file:    Output to a file the preprocessed and eventually formatted code
   \${LOCFILE}:       Environment variable used to override locinclude's default arguments"
 EXAMPLES="
   locfile src/main.cpp
@@ -62,14 +63,16 @@ for arg in "${LOCFILE:--O3 --std=c++2a}" "${@:---help}"; do
 	--normalize) NORMALIZE_PASS="clang-format";;
 	--keep-comments) KEEP_COMMENTS="-C";;
 	--keep-linemarkers) KEEP_LINEMARKERS=" ";; # By default linemarkers are kept, -P flag removes them
+	--output=*) OUTPUT_FILE=$(extractValue "${arg}");;
 	-*) COMPILER_ARGS="${COMPILER_ARGS:-} ${arg}";;
 	"") ;;
 	*) SOURCE_FILE="${arg}";;
 	esac
 done
 
+# Prepare to output
 COMPILATION_PASS="${COMPILER:-gcc} ${SOURCE_FILE:-} -E ${KEEP_LINEMARKERS:--P} ${KEEP_COMMENTS:-} ${COMPILER_ARGS:-} ${INCLUDE_PATHS}"
 VERBOSITY_PASS=${QUIET:-"echo ${COMPILATION_PASS} && printf 'LOC: '"}
 
-# Output
-${FILEWATCHER_PASS:-eval} "${VERBOSITY_PASS} && ${COMPILATION_PASS} | ${NORMALIZE_PASS:-tee} | wc -l"
+# Core
+${FILEWATCHER_PASS:-eval} "${VERBOSITY_PASS} && ${COMPILATION_PASS} | ${NORMALIZE_PASS:-tee} | tee ${OUTPUT_FILE:-} | wc -l"
