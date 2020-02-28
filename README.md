@@ -1,8 +1,9 @@
 # cpp-inspectools
 A suite of tools to perform different kind of inspections on C++ source and header files.
 
-* locinclude: measure the preprocessed lines of code of one or more system header includes
-* locfile: measure the preprocessed lines of code of the given file
+* [assembly](#assembly)
+* [locinclude](#locinclude)
+* [locfile](#locfile)
 
 ## Rationale
 C++ is considered a slow language to compile and a fast language to run, even though runtime performance can be hindered by an excessive or a wrong use of abstractions and generalized coding.\
