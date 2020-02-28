@@ -14,7 +14,8 @@ USAGE="
 OPTIONS="
   --help:           Print this help and exit
   --tabular:        Print a table with common system headers, separated by category
-  --verbose:        Show a more verbose output, including the source code given to the compiler
+  --verbose-cmd:    Show the compiler command
+  --verbose-lines:  Show \"Lines Of Code\" acronym
   --compiler=bin:   The binary to run as a compiler, defaults to gcc
   --libc++:         Use libc++ instead of libstdc++ (implies --compiler=clang)
   --include=path:   Add the specified path to include paths
@@ -46,12 +47,13 @@ extractValue()
 	echo "$1" | cut --delimiter = --field 2
 }
 INCLUDE_PATHS="-I include"
-QUIET=true
+QUIET_CMD=true
 for arg in "${LOCINCLUDE:--O3 --std=c++2a}" "${@:---help}"; do
 	case "${arg}" in
 	--help) printf "%s%s\n\nUSAGE:%s\n\nOPTIONS:%s\n\nEXAMPLES:%s\n\nDEPENDENCIES:%s\n" "${VERSION}" "${DESCRIPTION}" "${USAGE}" "${OPTIONS}" "${EXAMPLES}" "${DEPENDENCIES}"; exit;;
 	--tabular) TABULAR=true;;
-	--verbose) unset QUIET;;
+	--verbose-cmd) unset QUIET_CMD;;
+	--verbose-lines) COUNTING_VERBOSITY="printf \"LOC: \"";;
 	--compiler=*) COMPILER="$(extractValue "${arg}")";;
 	--libc++) COMPILER="clang"; COMPILER_ARGS="${COMPILER_ARGS:-} -stdlib=libc++";;
 	--include=*) INCLUDE_PATHS="${INCLUDE_PATHS} -I $(extractValue "${arg}")";;
@@ -67,7 +69,7 @@ done
 
 # Prepare to output
 COMPILATION_PASS="${COMPILER:-gcc} -E -x c++ ${KEEP_LINEMARKERS:--P} ${KEEP_COMMENTS:-} ${COMPILER_ARGS:-} ${INCLUDE_PATHS} -"
-VERBOSITY_PASS=${QUIET:-"echo \"${SOURCE:-}\" && echo ${COMPILATION_PASS} && printf 'LOC: '"}
+VERBOSITY_PASS="${QUIET_CMD:-"echo \"${SOURCE:-}\" && echo ${COMPILATION_PASS}"} && ${COUNTING_VERBOSITY:-true}"
 
 # Core non-tabular
 if [ -z ${TABULAR:-} ]; then
