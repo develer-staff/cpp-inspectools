@@ -21,7 +21,7 @@ OPTIONS="
   --include=path:   Add the specified path to include paths
   --normalize:      Pass through clang-format before counting lines,
                     useful for comparing different files without cheating on
-					code formatting differences
+                    code formatting differences
   --output=file:    Output to a file the preprocessed and eventually formatted code
   --keep-comments:  Prevent the preprocessor from stripping away comments
   --keep-markers:   Prevent the preprocessor from stripping away linemarkers
