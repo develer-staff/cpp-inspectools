@@ -31,7 +31,8 @@ OPTIONS="
   --output=file:    Output to a file the preprocessed and eventually formatted code
   \${LOCFILE}:       Environment variable used to override locinclude's default arguments"
 EXAMPLES="
-  locfile src/main.cpp
+  locfile src/
+  locfile src/main.cpp src/static_inits.cpp
   locfile src/main.cpp --include=commonlib/include --watch
   locfile src/main.cpp -fno-rtti -fno-exceptions -Ofast -std=c++2a
   locfile test/dataclient_constructor.cpp --libc++
@@ -68,13 +69,25 @@ for arg in "${LOCFILE:--O3 --std=c++2a}" "${@:---help}"; do
 	--output=*) OUTPUT_FILE=$(extractValue "${arg}");;
 	-*) COMPILER_ARGS="${COMPILER_ARGS:-} ${arg}";;
 	"") ;;
-	*) SOURCE_FILE="${arg}";;
+	*) if [ -d ${arg} ]; then SOURCE_FILES="${SOURCE_FILES:-} $(find -P ${arg} -type f -iname *.[hc]) $(find -P ${arg} -type f -iname *.[hc]pp)"; else SOURCE_FILES="${SOURCE_FILES:-} ${arg}"; fi;;
 	esac
 done
 
-# Prepare to output
-COMPILATION_PASS="${COMPILER:-gcc} ${SOURCE_FILE:-} -E ${KEEP_LINEMARKERS:--P} ${KEEP_COMMENTS:-} ${COMPILER_ARGS:-} ${INCLUDE_PATHS}"
-VERBOSITY_PASS="${QUIET_CMD:-"echo ${COMPILATION_PASS}"} && ${COUNTING_VERBOSITY:-true}"
+argsCount()
+{
+	echo $#
+}
+ARGS_COUNT=$(argsCount ${SOURCE_FILES})
+for file in ${SOURCE_FILES:-}; do
+	if [ ${ARGS_COUNT} -ne 1 ]; then PRINT_NAME="${file}"; fi
 
-# Core
-${FILEWATCHER_PASS:-eval} "${VERBOSITY_PASS} && ${COMPILATION_PASS} | ${NORMALIZE_PASS:-tee} | tee ${OUTPUT_FILE:-} | wc -l"
+	# Prepare to output
+	COMPILATION_PASS="${COMPILER:-gcc} ${file:-} -E ${KEEP_LINEMARKERS:--P} ${KEEP_COMMENTS:-} ${COMPILER_ARGS:-} ${INCLUDE_PATHS}"
+	VERBOSITY_PASS="${QUIET_CMD:-"echo ${COMPILATION_PASS}"} && ${COUNTING_VERBOSITY:-true}"
+
+	# Core
+	LINE_COUNT=$(eval "${COMPILATION_PASS} | ${NORMALIZE_PASS:-tee} | tee ${OUTPUT_FILE:-} | wc -l")
+
+	# Output
+	${FILEWATCHER_PASS:-eval} "${VERBOSITY_PASS} && printf \"%-9d %s\n\" ${LINE_COUNT} ${PRINT_NAME:-\"\"}"
+done
