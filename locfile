@@ -21,6 +21,7 @@ OPTIONS="
                     include/ folder is automatically added by default
   --watch:          Use watchexec as a filesystem watcher to automatically
                     update output on changes
+                    Works only when working on a single source file.
   --watch-no-clear: Like --watch, but without clearing the screen before each run
   --normalize:      Pass through clang-format before counting lines,
                     useful for comparing different files without cheating on
@@ -79,7 +80,7 @@ argsCount()
 }
 ARGS_COUNT=$(argsCount ${SOURCE_FILES})
 for file in ${SOURCE_FILES:-}; do
-	if [ ${ARGS_COUNT} -ne 1 ]; then PRINT_NAME="${file}"; fi
+	if [ ${ARGS_COUNT} -ne 1 ]; then PRINT_NAME="${file}"; FILEWATCHER_PASS=""; fi
 
 	# Prepare to output
 	COMPILATION_PASS="${COMPILER:-gcc} ${file:-} -E ${KEEP_LINEMARKERS:--P} ${KEEP_COMMENTS:-} ${COMPILER_ARGS:-} ${INCLUDE_PATHS}"
