@@ -14,7 +14,8 @@ The purpose of these tools is to give developers the chance of taking more infor
 ```
 assembly 0.1
 A tool to produce assembly code of the given C++ file.
-The tool is best suited to be run from the project root folder, since it automatically adds the include/ directory to look for header files.
+The tool is best suited to be run from the project root folder,
+since it automatically adds the include/ directory to look for header files.
 
 USAGE:
   assembly --help
@@ -58,9 +59,13 @@ DEPENDENCIES:
 ```
 locfile 0.3
 A tool to measure the actual lines of code of the given C++ file.
-The tool is best suited to be run from the project root folder, since it automatically adds the include/ directory to look for header files.
-Lines counting takes place after the preprocessor stage where macros are expanded and source code is included-in and cut-out by ifdefs: this is basically what the compiler frontend is going to be fed with.
-The lines of code that goes into the compiler frontend can be considered a proxy for compile-times, where the bigger the amount of LOC the greater the time needed to compile.
+The tool is best suited to be run from the project root folder,
+since it automatically adds the include/ directory to look for header files.
+Lines counting takes place after the preprocessor stage where macros are expanded
+and source code is included-in and cut-out by ifdefs: this is basically what the
+compiler frontend is going to be fed with.
+The lines of code that goes into the compiler frontend can be considered a proxy
+for compile-times, where the bigger the amount of LOC the greater the time needed to compile.
 
 USAGE:
   locfile --help
@@ -106,8 +111,11 @@ DEPENDENCIES:
 ```
 locinclude 0.3
 A tool to measure the lines of code introduced by including one or more C++ system headers.
-Lines counting takes place after the preprocessor stage where macros are expanded and source code is included-in and cut-out by ifdefs: this is basically what the compiler frontend is going to be fed with.
-The lines of code that goes into the compiler frontend can be considered a proxy for compile-times, where the bigger the amount of LOC the greater the time needed to compile.
+Lines counting takes place after the preprocessor stage where macros are expanded
+and source code is included-in and cut-out by ifdefs: this is basically what the
+compiler frontend is going to be fed with.
+The lines of code that goes into the compiler frontend can be considered a proxy
+for compile-times, where the bigger the amount of LOC the greater the time needed to compile.
 
 USAGE:
   locinclude --help
